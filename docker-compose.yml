@@ -1,0 +1,30 @@
+services:
+  mariadb:
+    image: mariadb:11
+    container_name: mimir-mariadb
+    restart: always
+    environment:
+      MYSQL_ROOT_PASSWORD: rootpassword
+      MYSQL_DATABASE: mimir
+      MYSQL_USER: mimir_app
+      MYSQL_PASSWORD: mimir_password
+    ports:
+      - "3306:3306"
+    volumes:
+      - mariadb_data:/var/lib/mysql
+
+  phpmyadmin:
+    image: phpmyadmin:latest
+    container_name: mimir-phpmyadmin
+    restart: always
+    ports:
+      - "8080:80"
+    environment:
+      PMA_HOST: mariadb
+      PMA_USER: root
+      PMA_PASSWORD: rootpassword
+    depends_on:
+      - mariadb
+
+volumes:
+  mariadb_data:
