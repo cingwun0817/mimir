@@ -36,10 +36,23 @@ var syncKlineCmd = &cobra.Command{
 				panic(err)
 			}
 
-			klines, err := operate.KLines(symbol)
+			klines, err := operate.KLines(symbol, "1d", 150)
 			if err != nil {
 				panic(err)
 			}
+
+			var prices []float64
+			for _, kline := range klines {
+				closePrice, err := strconv.ParseFloat(kline.Close, 64)
+				if err != nil {
+					panic(err)
+				}
+				prices = append(prices, closePrice)
+			}
+			ma5 := binance.MovingAverage(prices, 5)
+			ma10 := binance.MovingAverage(prices, 10)
+			ma20 := binance.MovingAverage(prices, 20)
+			ma50 := binance.MovingAverage(prices, 50)
 
 			for idx, kline := range klines {
 				date := time.UnixMilli(kline.OpenTime).Format("2006-01-02")
@@ -70,19 +83,42 @@ var syncKlineCmd = &cobra.Command{
 					changeVolume = (volume - prevVolume) / prevVolume
 				}
 
+				var cMa5, cMa10, cMa20, cMa50 float64
+
+				if idx < len(ma5) {
+					cMa5 = ma5[idx]
+				}
+				if idx < len(ma10) {
+					cMa10 = ma10[idx]
+				}
+				if idx < len(ma20) {
+					cMa20 = ma20[idx]
+				}
+				if idx < len(ma50) {
+					cMa50 = ma50[idx]
+				}
+
 				_, err := common.DB.ExecContext(
 					ctx,
-					"INSERT INTO `mimir`.`market_daily` (`symbol`, `date`, `close`, `volume`, `change_close`, `change_volume`) VALUES (?, ?, ?, ?, ?, ?) ON DUPLICATE KEY UPDATE `close` = ?, `volume` = ?, `change_close` = ?, `change_volume` = ?",
+					"INSERT INTO `mimir`.`market_daily` (`symbol`, `date`, `close`, `volume`, `change_close`, `change_volume`, `ma5`, `ma10`, `ma20`, `ma50`) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?) ON DUPLICATE KEY UPDATE `close` = ?, `volume` = ?, `change_close` = ?, `change_volume` = ?, `ma5` = ?, `ma10` = ?, `ma20` = ?, `ma50` = ?",
 					symbol,
 					date,
 					kline.Close,
 					kline.Volume,
 					changeClose,
 					changeVolume,
+					cMa5,
+					cMa10,
+					cMa20,
+					cMa50,
 					kline.Close,
 					kline.Volume,
 					changeClose,
 					changeVolume,
+					cMa5,
+					cMa10,
+					cMa20,
+					cMa50,
 				)
 				if err != nil {
 					panic(err)

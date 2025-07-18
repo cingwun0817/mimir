@@ -61,9 +61,9 @@ type Kline struct {
 	Ignore              string
 }
 
-func (b *BinanceUsdM) KLines(symbol string) ([]Kline, error) {
+func (b *BinanceUsdM) KLines(symbol, interval string, limit int) ([]Kline, error) {
 	httpClient := &http.Client{}
-	resp, err := httpClient.Get(url + fmt.Sprintf("/fapi/v1/klines?symbol=%s&limit=7&interval=1d", symbol))
+	resp, err := httpClient.Get(url + fmt.Sprintf("/fapi/v1/klines?symbol=%s&limit=%d&interval=%s", symbol, limit, interval))
 	if err != nil {
 		return nil, fmt.Errorf("failed to get symbols: %w", err)
 	}
