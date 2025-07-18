@@ -3,6 +3,7 @@ package common
 import (
 	"database/sql"
 	"fmt"
+	"mimir/internal/config"
 	"time"
 
 	_ "github.com/go-sql-driver/mysql"
@@ -11,12 +12,12 @@ import (
 var DB *sql.DB
 
 func Init() {
-	dsn := fmt.Sprintf("%s:%s@tcp(%s:%s)/%s?parseTime=true&loc=Local",
-		"mimir_app",
-		"mimir_password",
-		"127.0.0.1",
-		"3306",
-		"mimir",
+	dsn := fmt.Sprintf("%s:%s@tcp(%s:%d)/%s?parseTime=true&loc=Local",
+		config.Cfg.Db.User,
+		config.Cfg.Db.Password,
+		config.Cfg.Db.Host,
+		config.Cfg.Db.Port,
+		config.Cfg.Db.DBName,
 	)
 
 	var err error
