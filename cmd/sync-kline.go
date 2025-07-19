@@ -58,6 +58,7 @@ var syncKlineCmd = &cobra.Command{
 				date := time.UnixMilli(kline.OpenTime).Format("2006-01-02")
 
 				var changeClose, changeVolume float64
+				isVolumeSpike := "no"
 				if idx != 0 {
 					prevKine := klines[idx-1]
 
@@ -81,6 +82,10 @@ var syncKlineCmd = &cobra.Command{
 
 					changeClose = (close - prevClose) / prevClose
 					changeVolume = (volume - prevVolume) / prevVolume
+
+					if changeVolume > 0.5 {
+						isVolumeSpike = "yes"
+					}
 				}
 
 				var cMa5, cMa10, cMa20, cMa50 float64
@@ -100,7 +105,7 @@ var syncKlineCmd = &cobra.Command{
 
 				_, err := common.DB.ExecContext(
 					ctx,
-					"INSERT INTO `mimir`.`market_daily` (`symbol`, `date`, `close`, `volume`, `change_close`, `change_volume`, `ma5`, `ma10`, `ma20`, `ma50`) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?) ON DUPLICATE KEY UPDATE `close` = ?, `volume` = ?, `change_close` = ?, `change_volume` = ?, `ma5` = ?, `ma10` = ?, `ma20` = ?, `ma50` = ?",
+					"INSERT INTO `mimir`.`market_daily` (`symbol`, `date`, `close`, `volume`, `change_close`, `change_volume`, `ma5`, `ma10`, `ma20`, `ma50`, `is_volume_spike`) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) ON DUPLICATE KEY UPDATE `close` = ?, `volume` = ?, `change_close` = ?, `change_volume` = ?, `ma5` = ?, `ma10` = ?, `ma20` = ?, `ma50` = ?, `is_volume_spike` = ?",
 					symbol,
 					date,
 					kline.Close,
@@ -111,6 +116,7 @@ var syncKlineCmd = &cobra.Command{
 					cMa10,
 					cMa20,
 					cMa50,
+					isVolumeSpike,
 					kline.Close,
 					kline.Volume,
 					changeClose,
@@ -119,6 +125,7 @@ var syncKlineCmd = &cobra.Command{
 					cMa10,
 					cMa20,
 					cMa50,
+					isVolumeSpike,
 				)
 				if err != nil {
 					panic(err)
