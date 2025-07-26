@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"time"
 )
@@ -26,9 +27,8 @@ func (t *TelegramNotifier) Notify(message string) error {
 	url := fmt.Sprintf("https://api.telegram.org/bot%s/sendMessage", t.BotToken)
 
 	payload := map[string]interface{}{
-		"chat_id":    t.ChatID,
-		"text":       message,
-		"parse_mode": "Markdown",
+		"chat_id": t.ChatID,
+		"text":    message,
 	}
 
 	body, _ := json.Marshal(payload)
@@ -46,7 +46,8 @@ func (t *TelegramNotifier) Notify(message string) error {
 	defer resp.Body.Close()
 
 	if resp.StatusCode >= 300 {
-		return fmt.Errorf("Telegram notify failed: %s", resp.Status)
+		bodyBytes, _ := io.ReadAll(resp.Body)
+		return fmt.Errorf("Telegram notify failed: %s - %s", resp.Status, string(bodyBytes))
 	}
 
 	return nil

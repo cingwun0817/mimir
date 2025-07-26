@@ -134,7 +134,10 @@ var miningMaCmd = &cobra.Command{
 			config.Cfg.Telegram.ChatID,
 		)
 
-		tg.Notify(message)
+		err = tg.Notify(message)
+		if err != nil {
+			panic(err)
+		}
 	},
 }
 
