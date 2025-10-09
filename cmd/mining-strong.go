@@ -24,6 +24,7 @@ var miningStrongCmd = &cobra.Command{
 
 		now := time.Now()
 		yesterday := now.AddDate(0, 0, -1).Format("2006-01-02")
+		yesterday = "2025-09-22"
 
 		var date string
 		var changeClose float64
@@ -38,7 +39,7 @@ var miningStrongCmd = &cobra.Command{
 			panic(err)
 		}
 
-		if math.Abs(changeClose) > 0.015 {
+		if changeClose < 0 && math.Abs(changeClose) > 0.015 {
 			// 相對跌幅大
 			rows, err := common.DB.QueryContext(ctx, `
 			SELECT symbol, change_close
