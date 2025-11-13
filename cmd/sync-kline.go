@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"mimir/internal/binance"
 	"mimir/internal/common"
-	"mimir/internal/config"
 	"strconv"
 	"time"
 
@@ -27,29 +26,27 @@ var syncKlineCmd = &cobra.Command{
 
 		operate := binance.BinanceUsdM{}
 
-		rows, err := common.DB.QueryContext(ctx, "SELECT `name` FROM `mimir`.`symbols` ORDER BY `id` ASC")
+		rows, err := common.DB.QueryContext(ctx, "SELECT `id`, `name` FROM `mimir`.`symbols` ORDER BY `id` ASC")
 		if err != nil {
 			panic(err)
 		}
 		defer rows.Close()
 
-		// _, err = common.DB.ExecContext(ctx, "TRUNCATE TABLE `mimir`.`market_15m`")
-		// if err != nil {
-		// 	panic(err)
-		// }
 		for rows.Next() {
+			var id int
 			var symbol string
-			if err := rows.Scan(&symbol); err != nil {
+			if err := rows.Scan(&id, &symbol); err != nil {
 				panic(err)
 			}
 
-			dailyKline(ctx, operate, symbol)
-			fifteenMinutesKline(ctx, operate, symbol)
+			if id == 564 {
+				continue
+			}
+
+			// dailyKline(ctx, operate, symbol)
+			// fifteenMinutesKline(ctx, operate, symbol)
 			forHourKline(ctx, operate, symbol)
 		}
-
-		// // 15m volume surge
-		// miningVolumeSurge(ctx)
 
 		fmt.Println("[INFO] successfully synced KLines")
 	},
@@ -217,7 +214,7 @@ func fifteenMinutesKline(ctx context.Context, operate binance.BinanceUsdM, symbo
 }
 
 func forHourKline(ctx context.Context, operate binance.BinanceUsdM, symbol string) {
-	klines, err := operate.KLines(symbol, "4h", 150)
+	klines, err := operate.KLines(symbol, "4h", 56)
 	if err != nil {
 		panic(err)
 	}
@@ -303,63 +300,6 @@ func forHourKline(ctx context.Context, operate binance.BinanceUsdM, symbol strin
 			cMa20,
 			cMa50,
 		)
-		if err != nil {
-			panic(err)
-		}
-	}
-}
-
-func miningVolumeSurge(ctx context.Context) {
-	// var btcChangeClose, btcChangeVolume float64
-	rows, err := common.DB.QueryContext(ctx, "SELECT `hour_minute`, `change_close`, `change_volume` FROM `mimir`.`market_15m` WHERE `symbol` = 'BTCUSDT' AND `date` = ? ORDER BY `hour_minute` DESC LIMIT 4", today)
-	if err != nil {
-		panic(err)
-	}
-	defer rows.Close()
-
-	var maxChangeVolume, findChangeClose float64
-	var queryHourMinute string
-	for rows.Next() {
-		var hourMinute string
-		var changeClose, changeVolume float64
-		if err := rows.Scan(&hourMinute, &changeClose, &changeVolume); err != nil {
-			panic(err)
-		}
-
-		if changeVolume > maxChangeVolume {
-			maxChangeVolume = changeVolume
-			findChangeClose = changeClose
-			queryHourMinute = hourMinute
-		}
-
-	}
-
-	fmt.Printf("[INFO] BTCUSDT %s %s 漲幅 %.8f 量能 %.8fx\n", today, queryHourMinute, findChangeClose, maxChangeVolume)
-	if findChangeClose < 0 && maxChangeVolume > 3 {
-		message := "🚀 交易量激增＋BTC跌勢，抗跌且交易量放大:\n\n"
-
-		rows, err = common.DB.QueryContext(ctx, "SELECT `symbol`, `change_close`, `change_volume` FROM `mimir`.`market_15m` WHERE `symbol` != 'BTCUSDT' AND `date` = ? AND `hour_minute` = ? AND `change_volume` > 2 ORDER BY `change_close` ASC LIMIT 10", today, queryHourMinute)
-		if err != nil {
-			panic(err)
-		}
-		defer rows.Close()
-
-		for rows.Next() {
-			var symbol string
-			var changeClose, changeVolume float64
-			if err := rows.Scan(&symbol, &changeClose, &changeVolume); err != nil {
-				panic(err)
-			}
-
-			message += fmt.Sprintf("%s：%.8f %.0fx\n", symbol, changeClose, changeVolume)
-		}
-
-		tg := common.NewTelegramNotifier(
-			config.Cfg.Telegram.BotToken,
-			config.Cfg.Telegram.ChatID,
-		)
-
-		err = tg.Notify(message)
 		if err != nil {
 			panic(err)
 		}

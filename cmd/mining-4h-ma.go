@@ -50,13 +50,37 @@ var mining4hMaCmd = &cobra.Command{
 			if err := rows.Scan(&data.Symbol, &data.Close, &data.Ma5, &data.Ma10, &data.Ma20, &data.Ma50); err != nil {
 				panic(err)
 			}
+
+			if data.Ma5 == 0 || data.Ma10 == 0 || data.Ma20 == 0 || data.Ma50 == 0 {
+				continue
+			}
+
 			symbol4hData = append(symbol4hData, data)
 		}
 
+		var alertSymbols []string
 		message := "📊 4H MA 成型:\n\n"
 		for _, rowdata := range symbol4hData {
 			if rowdata.Close > rowdata.Ma5 && rowdata.Ma5 > rowdata.Ma10 && rowdata.Ma10 > rowdata.Ma20 && rowdata.Ma20 > rowdata.Ma50 {
-				message += fmt.Sprintf("🚀 %s\n", rowdata.Symbol)
+				var symbolCount int
+				common.DB.QueryRowContext(ctx, "SELECT COUNT(1) as count FROM `history_records` WHERE `symbol` = ? AND `type` = ?", rowdata.Symbol, "4h_ma").Scan(&symbolCount)
+
+				var icon string
+				if symbolCount == 0 {
+					icon = "✨"
+				}
+
+				message += fmt.Sprintf("%s %s\n", icon, rowdata.Symbol)
+
+				alertSymbols = append(alertSymbols, rowdata.Symbol)
+			}
+		}
+
+		common.DB.ExecContext(ctx, "TRUNCATE TABLE `mimir`.`history_records`")
+		for _, symbol := range alertSymbols {
+			_, err := common.DB.ExecContext(ctx, "INSERT INTO `history_records` (`symbol`, `type`) VALUES (?, ?)", symbol, "4h_ma")
+			if err != nil {
+				panic(err)
 			}
 		}
 
